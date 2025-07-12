@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notion游戏化系统</title>
+  <!-- 引入外部资源 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/@lottiefiles/lottie-web@5.12.2/dist/lottie.min.js"></script>
+  
+  <!-- Tailwind配置（深色模式+自定义颜色） -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: '#1E1E1E',
+            darker: '#121212',
+            accent: '#00CFFD', // 极光蓝（强调色）
+            success: '#39FF14', // 成功绿
+            warning: '#FFA500', // 警告橙
+            danger: '#FF3366', // 危险红
+            neutral: '#888888', // 中性灰
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .card-hover {
+        @apply transition-all duration-300 hover:shadow-lg hover:shadow-accent/20;
+      }
+      .progress-bar {
+        @apply h-2 rounded-full overflow-hidden bg-gray-700;
+      }
+      .progress-fill {
+        @apply h-full transition-all duration-500;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-dark text-gray-200 min-h-screen font-sans">
+  <!-- 导航栏 -->
+  <nav class="bg-darker border-b border-gray-700 sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-gamepad text-accent text-2xl"></i>
+        <h1 class="text-xl font-bold">成长游戏化系统</h1>
+      </div>
+      <div class="flex space-x-6">
+        <a href="#tasks" class="hover:text-accent transition-colors"><i class="fa fa-tasks mr-1"></i>任务</a>
+        <a href="#boss" class="hover:text-accent transition-colors"><i class="fa fa-dragon mr-1"></i>Boss战</a>
+        <a href="#achievements" class="hover:text-accent transition-colors"><i class="fa fa-trophy mr-1"></i>成就</a>
+        <a href="#shop" class="hover:text-accent transition-colors"><i class="fa fa-shopping-bag mr-1"></i>商城</a>
+        <a href="#stats" class="hover:text-accent transition-colors"><i class="fa fa-chart-line mr-1"></i>数据</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container mx-auto px-4 py-8">
+    <!-- 个人面板 -->
+    <section class="mb-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- 角色信息 -->
+      <div class="bg-darker rounded-xl p-6 border border-gray-700 card-hover">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h2 class="text-xl font-bold">角色信息</h2>
+            <p class="text-neutral text-sm">Lv.<span id="level">1</span> 成长者</p>
+          </div>
+          <div id="character-avatar" class="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">
+            <i class="fa fa-user text-accent text-2xl"></i>
+          </div>
+        </div>
+        
+        <!-- 经验值进度 -->
+        <div class="mb-4">
+          <div class="flex justify-between text-sm mb-1">
+            <span>经验值</span>
+            <span id="exp-text">250/1000</span>
+          </div>
+          <div class="progress-bar">
+            <div id="exp-bar" class="progress-fill bg-accent" style="width: 25%"></div>
+          </div>
+        </div>
+        
+        <!-- 信用值进度 -->
+        <div class="mb-4">
+          <div class="flex justify-between text-sm mb-1">
+            <span>信用值</span>
+            <span id="credit-text">90/100</span>
+          </div>
+          <div class="progress-bar">
+            <div id="credit-bar" class="progress-fill bg-success" style="width: 90%"></div>
+          </div>
+        </div>
+        
+        <!-- 三元货币 -->
+        <div class="grid grid-cols-3 gap-2 mt-6">
+          <div class="bg-gray-800 rounded-lg p-3 text-center">
+            <p class="text-neutral text-xs">星币</p>
+            <p id="star-coins" class="text-lg font-bold">500</p>
+          </div>
+          <div class="bg-gray-800 rounded-lg p-3 text-center">
+            <p class="text-neutral text-xs">经验值</p>
+            <p id="exp-points" class="text-lg font-bold">250</p>
+          </div>
+          <div class="bg-gray-800 rounded-lg p-3 text-center">
+            <p class="text-neutral text-xs">声望值</p>
+            <p id="prestige" class="text-lg font-bold">15</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- AI任务推荐 -->
+      <div class="bg-darker rounded-xl p-6 border border-gray-700 card-hover md:col-span-2">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold">AI推荐任务</h2>
+          <span class="text-xs bg-accent/20 text-accent px-2 py-1 rounded-full">今日更新</span>
+        </div>
+        <div id="ai-recommendations" class="space-y-3">
+          <div class="bg-gray-800/50 rounded-lg p-3 flex justify-between items-center">
+            <div>
+              <h3 class="font-medium">专注力训练</h3>
+              <p class="text-neutral text-sm">完成30分钟番茄工作法</p>
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="text-xs bg-success/20 text-success px-2 py-1 rounded">低难度</span>
+              <button onclick="addTask('专注力训练', '完成30分钟番茄工作法', '低')" class="text-accent hover:text-accent/80">
+                <i class="fa fa-plus-circle"></i>
+              </button>
+            </div>
+          </div>
+          <div class="bg-gray-800/50 rounded-lg p-3 flex justify-between items-center">
+            <div>
+              <h3 class="font-medium">项目复盘</h3>
+              <p class="text-neutral text-sm">总结本周项目进度与问题</p>
+            </div>
+            <div class="flex items-center space-x-3">
+              <span class="text-xs bg-warning/20 text-warning px-2 py-1 rounded">中难度</span>
+              <button onclick="addTask('项目复盘', '总结本周项目进度与问题', '中')" class="text-accent hover:text-accent/80">
+                <i class="fa fa-plus-circle"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+        <button id="refresh-recommendations" class="mt-4 text-sm text-accent hover:text-accent/80 flex items-center">
+          <i class="fa fa-refresh mr-1"></i> 刷新推荐
+        </button>
+      </div>
+    </section>
+
+    <!-- 任务看板 -->
+    <section id="tasks" class="mb-10">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-2xl font-bold">任务看板</h2>
+        <button id="add-task-btn" class="bg-accent text-darker px-4 py-2 rounded-lg hover:bg-accent/90 transition-colors">
+          <i class="fa fa-plus mr-1"></i> 新建任务
+        </button>
+      </div>
+      
+      <!-- 任务过滤 -->
+      <div class="flex flex-wrap gap-2 mb-6">
+        <button class="task-filter-btn bg-gray-800 px-3 py-1 rounded-full text-sm active" data-filter="all">全部</button>
+        <button class="task-filter-btn bg-gray-800 px-3 py-1 rounded-full text-sm" data-filter="低">低难度</button>
+        <button class="task-filter-btn bg-gray-800 px-3 py-1 rounded-full text-sm" data-filter="中">中难度</button>
+        <button class="task-filter-btn bg-gray-800 px-3 py-1 rounded-full text-sm" data-filter="高">高难度</button>
+      </div>
+      
+      <!-- 任务列表 -->
+      <div id="task-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- 任务项将通过JS动态生成 -->
+      </div>
+      
+      <!-- 连续完成统计 -->
+      <div class="mt-6 bg-darker rounded-xl p-4 border border-gray-700">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-medium">连续高难度任务</h3>
+            <p class="text-neutral text-sm">再完成 <span id="need-more-boss">1</span> 个触发BOSS战</p>
+          </div>
+          <div class="flex">
+            <div class="w-8 h-8 rounded-full bg-success flex items-center justify-center mx-1">
+              <i class="fa fa-check text-xs"></i>
+            </div>
+            <div class="w-8 h-8 rounded-full bg-success flex items-center justify-center mx-1">
+              <i class="fa fa-check text-xs"></i>
+            </div>
+            <div class="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center mx-1">
+              <i class="fa fa-plus text-xs"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BOSS战区域 -->
+    <section id="boss" class="mb-10">
+      <h2 class="text-2xl font-bold mb-6">BOSS挑战</h2>
+      <div id="boss-container" class="bg-darker rounded-xl p-6 border border-gray-700 relative overflow-hidden">
+        <!-- BOSS背景动画 -->
+        <div id="boss-animation" class="absolute top-0 right-0 w-1/3 h-full opacity-20"></div>
+        
+        <div class="relative z-10">
+          <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
+            <div>
+              <h3 class="text-xl font-bold text-warning">项目攻坚BOSS</h3>
+              <p class="text-neutral">限时24小时完成季度项目总结</p>
+            </div>
+            <div class="mt-4 md:mt-0">
+              <span class="bg-warning/20 text-warning px-3 py-1 rounded-full text-sm">史诗级难度</span>
+            </div>
+          </div>
+          
+          <!-- BOSS血条（剩余时间） -->
+          <div class="mb-6">
+            <div class="flex justify-between text-sm mb-1">
+              <span>剩余时间</span>
+              <span id="boss-time">20:30:15</span>
+            </div>
+            <div class="progress-bar">
+              <div id="boss-bar" class="progress-fill bg-warning" style="width: 85%"></div>
+            </div>
+          </div>
+          
+          <!-- 奖励与操作 -->
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div>
+              <p class="text-sm text-neutral mb-1">奖励</p>
+              <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                  <i class="fa fa-star text-accent mr-1"></i>
+                  <span>1000星币</span>
+                </div>
+                <div class="flex items-center">
+                  <i class="fa fa-trophy text-warning mr-1"></i>
+                  <span>史诗徽章</span>
+                </div>
+              </div>
+            </div>
+            <button id="accept-boss" class="mt-4 md:mt-0 bg-warning text-darker px-4 py-2 rounded-lg hover:bg-warning/90 transition-colors">
+              接受挑战
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 成就系统 -->
+    <section id="achievements" class="mb-10">
+      <h2 class="text-2xl font-bold mb-6">成就仓库</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <!-- 已解锁成就 -->
+        <div class="bg-darker rounded-xl p-4 border border-gray-700 text-center card-hover">
+          <div class="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center mx-auto mb-2">
+            <i class="fa fa-check-circle text-accent"></i>
+          </div>
+          <h3 class="text-sm font-medium">效率新手</h3>
+          <p class="text-xs text-neutral">完成10个任务</p>
+        </div>
+        <div class="bg-darker rounded-xl p-4 border border-gray-700 text-center card-hover">
+          <div class="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-2">
+            <i class="fa fa-calendar-check-o text-success"></i>
+          </div>
+          <h3 class="text-sm font-medium">坚持不懈</h3>
+          <p class="text-xs text-neutral">连续3天完成任务</p>
+        </div>
+        
+        <!-- 未解锁成就 -->
+        <div class="bg-darker rounded-xl p-4 border border-gray-700 text-center opacity-50 card-hover">
+          <div class="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center mx-auto mb-2">
+            <i class="fa fa-lock text-gray-500"></i>
+          </div>
+          <h3 class="text-sm font-medium">完美主义</h3>
+          <p class="text-xs text-neutral">信用值保持90+</p>
+        </div>
+        <div class="bg-darker rounded-xl p-4 border border-gray-700 text-center opacity-50 card-hover">
+          <div class="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center mx-auto mb-2">
+            <i class="fa fa-lock text-gray-500"></i>
+          </div>
+          <h3 class="text-sm font-medium">BOSS猎人</h3>
+          <p class="text-xs text-neutral">击败1个BOSS</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 商城系统 -->
+    <section id="shop" class="mb-10">
+      <h2 class="text-2xl font-bold mb-6">道具商城</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-darker rounded-xl p-6 border border-gray-700 card-hover">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+              <i class="fa fa-bolt text-accent"></i>
+            </div>
+            <span class="bg-accent/20 text-accent px-2 py-1 rounded-full text-xs">热门</span>
+          </div>
+          <h3 class="text-lg font-medium mb-2">精力药剂</h3>
+          <p class="text-neutral text-sm mb-4">恢复30%精力值，提升任务效率</p>
+          <div class="flex justify-between items-center">
+            <div class="flex items-center">
+              <i class="fa fa-star text-accent mr-1"></i>
+              <span>100星币</span>
+            </div>
+            <button class="buy-item bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-lg text-sm transition-colors" data-cost="100" data-name="精力药剂">
+              购买
+            </button>
+          </div>
+        </div>
+        
+        <div class="bg-darker rounded-xl p-6 border border-gray-700 card-hover">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center">
+              <i class="fa fa-book text-success"></i>
+            </div>
+          </div>
+          <h3 class="text-lg font-medium mb-2">知识碎片</h3>
+          <p class="text-neutral text-sm mb-4">用于合成高级道具，提升声望值</p>
+          <div class="flex justify-between items-center">
+            <div class="flex items-center">
+              <i class="fa fa-star text-accent mr-1"></i>
+              <span>50星币</span>
+            </div>
+            <button class="buy-item bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-lg text-sm transition-colors" data-cost="50" data-name="知识碎片">
+              购买
+            </button>
+          </div>
+        </div>
+        
+        <div class="bg-darker rounded-xl p-6 border border-gray-700 card-hover">
+          <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-warning/20 flex items-center justify-center">
+              <i class="fa fa-clock-o text-warning"></i>
+            </div>
+            <span class="bg-warning/20 text-warning px-2 py-1 rounded-full text-xs">稀有</span>
+          </div>
+          <h3 class="text-lg font-medium mb-2">时间沙漏</h3>
+          <p class="text-neutral text-sm mb-4">回溯任务时间，修复逾期记录</p>
+          <div class="flex justify-between items-center">
+            <div class="flex items-center">
+              <i class="fa fa-star text-accent mr-1"></i>
+              <span>500星币</span>
+            </div>
+            <button class="buy-item bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-lg text-sm transition-colors" data-cost="500" data-name="时间沙漏">
+              购买
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 数据统计 -->
+    <section id="stats" class="mb-10">
+      <h2 class="text-2xl font-bold mb-6">数据统计</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- 任务完成趋势 -->
+        <div class="bg-darker rounded-xl p-6 border border-gray-700">
+          <h3 class="text-lg font-medium mb-4">任务完成趋势</h3>
+          <canvas id="task-trend-chart" height="200"></canvas>
+        </div>
+        
+        <!-- 任务类型分布 -->
+        <div class="bg-darker rounded-xl p-6 border border-gray-700">
+          <h3 class="text-lg font-medium mb-4">任务类型分布</h3>
+          <canvas id="task-type-chart" height="200"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 新建任务弹窗 -->
+  <div id="task-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden">
+    <div class="bg-darker rounded-xl p-6 w-full max-w-md border border-gray-700">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">新建任务</h3>
+        <button id="close-modal" class="text-gray-400 hover:text-white">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      <form id="task-form">
+        <div class="mb-4">
+          <label class="block text-sm mb-1">任务名称</label>
+          <input type="text" id="task-name" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:border-accent" required>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm mb-1">任务描述</label>
+          <textarea id="task-desc" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:border-accent" rows="3"></textarea>
+        </div>
+        <div class="mb-6">
+          <label class="block text-sm mb-1">难度等级</label>
+          <select id="task-difficulty" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 focus:outline-none focus:border-accent">
+            <option value="低">低难度</option>
+            <option value="中">中难度</option>
+            <option value="高">高难度</option>
+          </select>
+        </div>
+        <button type="submit" class="w-full bg-accent text-darker py-2 rounded-lg hover:bg-accent/90 transition-colors">
+          创建任务
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 成就解锁动画容器 -->
+  <div id="achievement-popup" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-darker border border-accent rounded-xl p-6 z-50 hidden max-w-sm w-full">
+    <div class="flex items-center space-x-4">
+      <div id="popup-animation" class="w-16 h-16"></div>
+      <div>
+        <h3 class="text-xl font-bold text-accent" id="popup-title">成就解锁！</h3>
+        <p id="popup-desc" class="text-gray-300">你完成了「坚持不懈」成就</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 初始化数据（本地存储）
+    const initData = () => {
+      const defaultData = {
+        tasks: [
+          { id: 1, name: '晨间冥想', desc: '完成10分钟正念冥想', difficulty: '低', status: '未完成' },
+          { id: 2, name: '代码优化', desc: '重构登录模块代码', difficulty: '中', status: '未完成' },
+          { id: 3, name: '市场分析', desc: '完成Q3竞品分析报告', difficulty: '高', status: '未完成' }
+        ],
+        user: {
+          level: 1,
+          exp: 250,
+          credit: 90,
+          starCoins: 500,
+          prestige: 15,
+          consecutiveHigh: 2 // 连续高难度任务数
+        },
+        inventory: []
+      };
+
+      if (!localStorage.getItem('gameData')) {
+        localStorage.setItem('gameData', JSON.stringify(defaultData));
+      }
+    };
+
+    // 获取数据
+    const getData = () => JSON.parse(localStorage.getItem('gameData'));
+    const saveData = (data) => localStorage.setItem('gameData', JSON.stringify(data));
+
+    // 渲染任务列表
+    const renderTasks = (filter = 'all') => {
+      const data = getData();
+      const taskList = document.getElementById('task-list');
+      taskList.innerHTML = '';
+
+      const filteredTasks = filter === 'all' 
+        ? data.tasks 
+        : data.tasks.filter(task => task.difficulty === filter);
+
+      filteredTasks.forEach(task => {
+        const difficultyClass = task.difficulty === '低' ? 'bg-success/20 text-success' 
+          : task.difficulty === '中' ? 'bg-warning/20 text-warning' 
+          : 'bg-danger/20 text-danger';
+        
+        const statusIcon = task.status === '已完成' ? 'fa-check-circle text-success' : 'fa-circle-o text-neutral';
+        const statusText = task.status === '已完成' ? '已完成' : '未完成';
+        const statusClass = task.status === '已完成' ? 'line-through text-neutral' : '';
+
+        const taskEl = document.createElement('div');
+        taskEl.className = 'bg-darker rounded-xl p-5 border border-gray-700 card-hover';
+        taskEl.innerHTML = `
+          <div class="flex justify-between items-start mb-3">
+            <h3 class="font-medium ${statusClass}">${task.name}</h3>
+            <span class="text-xs ${difficultyClass} px-2 py-1 rounded-full">${task.difficulty}难度</span>
+          </div>
+          <p class="text-neutral text-sm mb-4 ${statusClass}">${task.desc}</p>
+          <div class="flex justify-between items-center">
+            <span class="text-xs text-neutral">状态：${statusText}</span>
+            <button 
+              class="toggle-task text-accent hover:text-accent/80" 
+              data-id="${task.id}"
+              ${task.status === '已完成' ? 'disabled' : ''}
+            >
+              <i class="fa ${statusIcon}"></i>
+            </button>
+          </div>
+        `;
+        taskList.appendChild(taskEl);
+      });
+
+      // 添加任务状态切换事件
+      document.querySelectorAll('.toggle-task').forEach(btn => {
+        if (!btn.disabled) {
+          btn.addEventListener('click', (e) => {
+            toggleTaskStatus(parseInt(e.currentTarget.dataset.id));
+          });
+        }
+      });
+    };
+
+    // 切换任务状态
+    const toggleTaskStatus = (taskId) => {
+      const data = getData();
+      const task = data.tasks.find(t => t.id === taskId);
+      if (!task || task.status === '已完成') return;
+
+      // 更新任务状态
+      task.status = '已完成';
+      
+      // 计算奖励
+      const rewards = {
+        '低': { exp: 50, coins: 50, prestige: 2 },
+        '中': { exp: 100, coins: 100, prestige: 5 },
+        '高': { exp: 200, coins: 200, prestige: 10 }
+      };
+      
+      const reward = rewards[task.difficulty];
+      data.user.exp += reward.exp;
+      data.user.starCoins += reward.coins;
+      data.user.prestige += reward.prestige;
+      
+      // 连续高难度任务计数
+      if (task.difficulty === '高') {
+        data.user.consecutiveHigh += 1;
+        // 检查是否触发BOSS战
+        if (data.user.consecutiveHigh >= 3) {
+          showBossNotification();
+        }
+      } else {
+        data.user.consecutiveHigh = 0;
+      }
+      
+      // 检查升级
+      if (data.user.exp >= data.user.level * 1000) {
+        data.user.level += 1;
+        showAchievementPopup('等级提升', `恭喜升级到Lv.${data.user.level}`);
+      }
+      
+      // 检查信用值
+      data.user.credit = Math.min(100, data.user.credit + 2);
+      
+      saveData(data);
+      updateUserInfo();
+      renderTasks();
+      renderCharts();
+      
+      // 检查成就
+      if (data.tasks.filter(t => t.status === '已完成').length >= 10) {
+        showAchievementPopup('效率大师', '完成了10个任务，继续加油！');
+      }
+    };
+
+    // 更新用户信息
+    const updateUserInfo = () => {
+      const data = getData();
+      const user = data.user;
+      
+      document.getElementById('level').textContent = user.level;
+      document.getElementById('exp-text').textContent = `${user.exp}/${user.level * 1000}`;
+      document.getElementById('exp-bar').style.width = `${(user.exp / (user.level * 1000)) * 100}%`;
+      
+      document.getElementById('credit-text').textContent = `${user.credit}/100`;
+      document.getElementById('credit-bar').style.width = `${user.credit}%`;
+      
+      document.getElementById('star-coins').textContent = user.starCoins;
+      document.getElementById('exp-points').textContent = user.exp;
+      document.getElementById('prestige').textContent = user.prestige;
+      
+      // 更新连续高难度计数
+      const needMore = 3 - user.consecutiveHigh;
+      document.getElementById('need-more-boss').textContent = needMore > 0 ? needMore : 0;
+    };
+
+    // 添加任务
+    const addTask = (name, desc, difficulty) => {
+      const data = getData();
+      const newTask = {
+        id: Date.now(),
+        name,
+        desc,
+        difficulty,
+        status: '未完成'
+      };
+      
+      data.tasks.push(newTask);
+      saveData(data);
+      renderTasks();
+      hideTaskModal();
+    };
+
+    // 显示/隐藏任务弹窗
+    const showTaskModal = () => {
+      document.getElementById('task-modal').classList.remove('hidden');
+    };
+
+    const hideTaskModal = () => {
+      document.getElementById('task-modal').classList.add('hidden');
+      document.getElementById('task-form').reset();
+    };
+
+    // 购买道具
+    const buyItem = (name, cost) => {
+      const data = getData();
+      if (data.user.starCoins < cost) {
+        alert('星币不足！');
+        return;
+      }
+      
+      data.user.starCoins -= cost;
+      data.inventory.push({ name, count: 1 });
+      saveData(data);
+      updateUserInfo();
+      alert(`成功购买「${name}」`);
+    };
+
+    // 显示成就解锁弹窗
+    const showAchievementPopup = (title, desc) => {
+      document.getElementById('popup-title').textContent = title;
+      document.getElementById('popup-desc').textContent = desc;
+      document.getElementById('achievement-popup').classList.remove('hidden');
+      
+      // 加载动画
+      lottie.loadAnimation({
+        container: document.getElementById('popup-animation'),
+        path: 'https://assets10.lottiefiles.com/packages/lf20_9k5x5k.json', // 庆祝动画
+        renderer: 'svg',
+        loop: false,
+        autoplay: true
+      });
+      
+      // 3秒后隐藏
+      setTimeout(() => {
+        document.getElementById('achievement-popup').classList.add('hidden');
+      }, 3000);
+    };
+
+    // 显示BOSS战通知
+    const showBossNotification = () => {
+      showAchievementPopup('BOSS解锁', '连续完成3个高难度任务，解锁史诗级挑战！');
+    };
+
+    // 渲染图表
+    const renderCharts = () => {
+      // 任务完成趋势图
+      const trendCtx = document.getElementById('task-trend-chart').getContext('2d');
+      new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+          datasets: [{
+            label: '完成任务数',
+            data: [3, 5, 2, 4, 6, 3, 4],
+            borderColor: '#00CFFD',
+            backgroundColor: 'rgba(0, 207, 253, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
+            x: { grid: { color: 'rgba(255, 255, 255, 0.1)' } }
+          }
+        }
+      });
+
+      // 任务类型分布图
+      const typeCtx = document.getElementById('task-type-chart').getContext('2d');
+      new Chart(typeCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['低难度', '中难度', '高难度'],
+          datasets: [{
+            data: [12, 8, 5],
+            backgroundColor: ['#39FF14', '#FFA500', '#FF3366'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    };
+
+    // 初始化BOSS战动画
+    const initBossAnimation = () => {
+      lottie.loadAnimation({
+        container: document.getElementById('boss-animation'),
+        path: 'https://assets1.lottiefiles.com/packages/lf20_5kxp3t.json', // 龙动画
+        renderer: 'svg',
+        loop: true,
+        autoplay: true
+      });
+    };
+
+    // 事件监听
+    const initEvents = () => {
+      // 任务过滤
+      document.querySelectorAll('.task-filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.task-filter-btn').forEach(b => b.classList.remove('active', 'bg-accent/20', 'text-accent'));
+          e.currentTarget.classList.add('active', 'bg-accent/20', 'text-accent');
+          renderTasks(e.currentTarget.dataset.filter);
+        });
+      });
+
+      // 新建任务按钮
+      document.getElementById('add-task-btn').addEventListener('click', showTaskModal);
+      document.getElementById('close-modal').addEventListener('click', hideTaskModal);
+
+      // 任务表单提交
+      document.getElementById('task-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('task-name').value;
+        const desc = document.getElementById('task-desc').value;
+        const difficulty = document.getElementById('task-difficulty').value;
+        addTask(name, desc, difficulty);
+      });
+
+      // 购买道具
+      document.querySelectorAll('.buy-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const cost = parseInt(e.currentTarget.dataset.cost);
+          const name = e.currentTarget.dataset.name;
+          buyItem(name, cost);
+        });
+      });
+
+      // 刷新AI推荐
+      document.getElementById('refresh-recommendations').addEventListener('click', () => {
+        const btn = document.getElementById('refresh-recommendations');
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i> 刷新中...';
+        
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fa fa-refresh mr-1"></i> 刷新推荐';
+          showAchievementPopup('推荐更新', 'AI已为你生成新任务推荐');
+        }, 1000);
+      });
+
+      // 接受BOSS挑战
+      document.getElementById('accept-boss').addEventListener('click', () => {
+        showAchievementPopup('挑战开始', 'BOSS战已激活，限时24小时完成！');
+      });
+    };
+
+    // 初始化
+    window.onload = () => {
+      initData();
+      renderTasks();
+      updateUserInfo();
+      renderCharts();
+      initBossAnimation();
+      initEvents();
+    };
+  </script>
+</body>
+</html>
